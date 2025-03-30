@@ -84,10 +84,5 @@ app.post('/api/summarize', async (req: Request, res: Response) => {
   }
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
-});
-
 // Export the Express app for Vercel
 export default app;
