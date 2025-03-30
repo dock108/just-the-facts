@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { z } from 'zod'; // Import zod
@@ -12,7 +12,7 @@ import { performWebSearch } from './webSearchService'; // Import the new search 
 // Load environment variables
 dotenv.config();
 
-const app = express();
+const app: Express = express();
 const port = process.env.PORT || 3001; // Default to 3001 if PORT not in .env
 
 // Middleware
