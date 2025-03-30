@@ -95,7 +95,7 @@ function App() {
     try {
       // API call to backend /api/summarize
       const response = await axios.post<ApiResponse>(
-        'http://localhost:3001/api/summarize', // Assuming backend runs on 3001
+        '/api/summarize', // Use relative path for Vercel
         { topic }, // Send topic in the request body
         { timeout: 30000 } // Optional: Set a timeout (e.g., 30 seconds)
       );

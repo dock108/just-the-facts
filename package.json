@@ -1,0 +1,23 @@
+{
+  "name": "just-the-facts",
+  "version": "1.0.0",
+  "description": "Just the Facts is an AI-powered web application designed to provide concise, unbiased, and fact-based summaries of user-requested topics or events. Ideal for quickly obtaining clear and objective information without opinion or unnecessary detail.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/highlyprofitable108/just-the-facts.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/highlyprofitable108/just-the-facts/issues"
+  },
+  "homepage": "https://github.com/highlyprofitable108/just-the-facts#readme"
+}
