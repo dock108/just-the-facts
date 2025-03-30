@@ -30,7 +30,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Summarize endpoint
-app.post('/api/summarize', async (req: Request, res: Response) => {
+app.post('/api/summarize', async (req: Request, res: Response): Promise<void | Response> => {
   // 1. Validate request body
   const validationResult = SummarizeRequestSchema.safeParse(req.body);
   if (!validationResult.success) {
