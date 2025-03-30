@@ -2,16 +2,15 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/package.json",
-      "use": "@vercel/node",
-      "config": { "includeFiles": ["src/**"] }
+      "src": "server/src/server.ts",
+      "use": "@vercel/node"
     },
     {
       "src": "client/package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist",
-        "buildCommand": "npm run build"
+        "buildCommand": "cd client && npm install && npm run build"
       }
     }
   ],
@@ -21,8 +20,18 @@
       "dest": "/server/src/server.ts"
     },
     {
+      "src": "/static/(.*)",
+      "dest": "/client/dist/static/$1"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/client/dist/assets/$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "headers": { "cache-control": "s-maxage=0" },
       "dest": "/client/dist/index.html"
     }
   ]
