@@ -21,7 +21,12 @@ export async function getSummaryFromOpenAI(
   searchResults: SearchResultItem[],
   apiKey: string
 ): Promise<AISummaryResponse> {
-  console.log('Formatting context for OpenAI...');
+  console.log('Setting up context for OpenAI summarization...');
+
+  if (!apiKey) {
+    console.error('OpenAI API key is missing or invalid');
+    throw new Error('OpenAI API key is not configured properly.');
+  }
 
   const openai = new OpenAI({
     apiKey: apiKey,
@@ -37,46 +42,78 @@ export async function getSummaryFromOpenAI(
   // Construct the user prompt
   const userPrompt = `Topic: ${topic}\n\n${context}\nSummarize the key facts based *only* on the context above, citing the sources with inline markers. Remember to output ONLY the JSON object.`;
 
+  console.log('User prompt constructed, total length:', userPrompt.length);
   console.log('Calling OpenAI API...');
-  try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o', // Or your preferred model
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.2, // Lower temperature for more factual/deterministic output
-      response_format: { type: "json_object" }, // Request JSON output
-    });
-
-    const responseContent = completion.choices[0]?.message?.content;
-
-    if (!responseContent) {
-      throw new Error('OpenAI response content is empty.');
-    }
-
-    console.log('Received OpenAI response.');
-
-    // Parse the JSON response
+  
+  // Maximum number of retries
+  const maxRetries = 2;
+  let retries = 0;
+  let lastError: Error | null = null;
+  
+  while (retries <= maxRetries) {
     try {
-      const parsedResponse: AISummaryResponse = JSON.parse(responseContent);
-      // Basic validation of the parsed structure
-      if (!parsedResponse.summary || !Array.isArray(parsedResponse.citations)) {
-          throw new Error('Invalid JSON structure received from OpenAI.');
+      if (retries > 0) {
+        console.log(`Retry attempt ${retries}/${maxRetries}...`);
       }
-      console.log('Successfully parsed OpenAI JSON response.');
-      return parsedResponse;
-    } catch (parseError) {
-      console.error("Failed to parse OpenAI JSON response:", responseContent);
-      throw new Error(`Failed to parse summary JSON from AI: ${parseError}`);
-    }
+      
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o', // Or your preferred model
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.2, // Lower temperature for more factual/deterministic output
+        response_format: { type: "json_object" }, // Request JSON output
+        timeout: 60000, // 60 second timeout
+      });
 
-  } catch (error) {
-    console.error("Error calling OpenAI API:", error);
-    // Rethrow or handle specific errors as needed
-    if (error instanceof OpenAI.APIError) {
-        throw new Error(`OpenAI API Error: ${error.status} ${error.name} ${error.message}`);
+      const responseContent = completion.choices[0]?.message?.content;
+
+      if (!responseContent) {
+        throw new Error('OpenAI response content is empty.');
+      }
+
+      console.log('Received response from OpenAI, parsing JSON...');
+
+      // Parse the JSON response
+      try {
+        const parsedResponse: AISummaryResponse = JSON.parse(responseContent);
+        // Basic validation of the parsed structure
+        if (!parsedResponse.summary || !Array.isArray(parsedResponse.citations)) {
+            throw new Error('Invalid JSON structure received from OpenAI.');
+        }
+        console.log('Successfully parsed OpenAI JSON response.');
+        return parsedResponse;
+      } catch (parseError) {
+        console.error("Failed to parse OpenAI JSON response:", parseError);
+        console.error("Raw response content:", responseContent.substring(0, 200) + '...');
+        throw new Error(`Failed to parse summary JSON from AI: ${parseError}`);
+      }
+
+    } catch (error) {
+      console.error(`Error calling OpenAI API (attempt ${retries + 1}/${maxRetries + 1}):`, error);
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      if (error instanceof OpenAI.APIError) {
+        // If rate limited, wait before retry
+        if (error.status === 429) {
+          console.log('OpenAI API rate limited, waiting before retry...');
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        }
+      }
+      
+      retries++;
+      
+      // If we've exhausted all retries, throw the last error
+      if (retries > maxRetries) {
+        if (error instanceof OpenAI.APIError) {
+          throw new Error(`OpenAI API Error: ${error.status} ${error.name} - ${error.message}`);
+        }
+        throw lastError;
+      }
     }
-    throw new Error('Failed to get summary from OpenAI.');
   }
+  
+  // This should never happen because the loop will always either return or throw
+  throw new Error('Failed to get summary from OpenAI after multiple attempts.');
 } 

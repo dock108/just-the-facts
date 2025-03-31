@@ -36,9 +36,10 @@ export async function performWebSearch(query: string, apiKey: string): Promise<S
     throw new Error('Search API key is not configured.');
   }
 
-  console.log(`Performing Serper web search for: "${query}"`);
+  console.log(`Performing Serper web search for query: "${query}"`);
 
   try {
+    console.log('Making request to Serper API...');
     const response = await axios.post<SerperResponse>(
       SERPER_API_URL,
       {
@@ -50,10 +51,12 @@ export async function performWebSearch(query: string, apiKey: string): Promise<S
           'X-API-KEY': apiKey,
           'Content-Type': 'application/json'
         },
-        timeout: 10000 // Set a timeout (e.g., 10 seconds)
+        timeout: 15000 // Increased timeout to 15 seconds
       }
     );
 
+    console.log('Received response from Serper API');
+    
     if (response.data && response.data.organic) {
       console.log(`Serper search returned ${response.data.organic.length} organic results.`);
       // Map the Serper results to our desired format
@@ -62,9 +65,11 @@ export async function performWebSearch(query: string, apiKey: string): Promise<S
         title: item.title || 'Untitled',
         snippet: item.snippet || 'No snippet available.'
       }));
+      
+      console.log('First result title:', results[0]?.title || 'No results');
       return results;
     } else {
-      console.warn('Serper API returned unexpected response structure:', response.data);
+      console.warn('Serper API returned unexpected response structure:', JSON.stringify(response.data).substring(0, 200) + '...');
       return []; // Return empty array if no organic results
     }
 
@@ -72,8 +77,20 @@ export async function performWebSearch(query: string, apiKey: string): Promise<S
     console.error('Error calling Serper API:', error);
     if (axios.isAxiosError(error)) {
       // Log more details for Axios errors
-      console.error('Serper API response status:', error.response?.status);
-      console.error('Serper API response data:', error.response?.data);
+      if (error.code === 'ECONNABORTED') {
+        console.error('Serper API request timed out');
+        throw new Error('Web search request timed out. Please try again.');
+      }
+      
+      console.error('Serper API request failed');
+      console.error('Status:', error.response?.status);
+      console.error('Status text:', error.response?.statusText);
+      console.error('Response data:', error.response?.data);
+      
+      if (error.response?.status === 429) {
+        throw new Error('Web search service is currently rate limited. Please try again in a few minutes.');
+      }
+      
       throw new Error(`Web search failed: ${error.response?.data?.message || error.message}`);
     }
     throw new Error('An unexpected error occurred during web search.');
