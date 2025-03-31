@@ -1,4 +1,4 @@
-import express, { Request, Response, Application } from 'express';
+import express, { Request, Response, Application, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { z } from 'zod'; // Import zod
@@ -25,16 +25,17 @@ const SummarizeRequestSchema = z.object({
 });
 
 // Simple route for testing
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', (req: Request, res: Response, next: NextFunction) => {
   res.json({ status: 'UP' });
 });
 
 // Summarize endpoint
-app.post('/api/summarize', async (req: Request, res: Response): Promise<void | Response> => {
+app.post('/api/summarize', async (req: Request, res: Response, next: NextFunction) => {
   // 1. Validate request body
   const validationResult = SummarizeRequestSchema.safeParse(req.body);
   if (!validationResult.success) {
-    return res.status(400).json({ errors: validationResult.error.errors });
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
   }
 
   const { topic } = validationResult.data;
