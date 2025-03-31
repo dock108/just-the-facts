@@ -1,12 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import './App.css'
-import axios from 'axios'
-
-// Define the expected API response structure
-interface ApiResponse {
-  summary: string;
-  citations: { id: number; url: string; title: string }[];
-}
+import AdSenseUnit from './AdSenseUnit'
 
 // Helper function to render summary with inline citation links
 const renderSummaryWithCitations = (summary: string, citations: { id: number; url: string; title: string }[]) => {
@@ -47,35 +41,6 @@ const renderSummaryWithCitations = (summary: string, citations: { id: number; ur
   });
 };
 
-// AdSense Component
-const AdSenseUnit = ({ adSlot, adClient }: { adSlot: string; adClient: string }) => {
-  const adPushedRef = useRef(false); // Ref to track if ad push was attempted
-
-  useEffect(() => {
-    // Only attempt push if it hasn't been attempted for this instance
-    if (!adPushedRef.current) {
-       try {
-         // Try to push the ad after the component mounts
-         console.log(`Attempting AdSense push for slot: ${adSlot}`);
-         ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
-         // Mark as attempted *after* the push call
-         adPushedRef.current = true;
-       } catch (e) {
-         console.error(`AdSense Error for slot ${adSlot}:`, e);
-       }
-    }
-  }, [adSlot]); // Re-run if adSlot changes (though unlikely here)
-
-  return (
-    <ins key={adSlot} className="adsbygoogle"
-         style={{ display: 'block' }}
-         data-ad-client={adClient}
-         data-ad-slot={adSlot}
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-  );
-};
-
 function App() {
   const [topic, setTopic] = useState('');
   const [summary, setSummary] = useState('');
@@ -91,36 +56,29 @@ function App() {
     setCitations([]);
 
     try {
-      // API call to backend /api/summarize
-      const response = await axios.post<ApiResponse>(
-        '/api/summarize', // Use relative path for Vercel
-        { topic }, // Send topic in the request body
-        { timeout: 30000 } // Optional: Set a timeout (e.g., 30 seconds)
-      );
+      const response = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ topic }),
+      });
 
-      if (response.data && response.data.summary) {
-        setSummary(response.data.summary);
-        setCitations(response.data.citations || []);
-      } else {
-        throw new Error('Received invalid data from server.');
-      }
-
-    } catch (err: unknown) {
-      console.error("API Error:", err);
-      let errorMessage = 'Failed to fetch summary. Please try again.';
-      if (axios.isAxiosError(err)) {
-        if (err.response) {
-          // Use error message from backend if available
-          errorMessage = err.response.data?.message || err.message;
-        } else if (err.request) {
-          errorMessage = 'No response received from server.';
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.summary) {
+          setSummary(data.summary);
+          setCitations(data.citations || []);
         } else {
-          errorMessage = err.message;
+          throw new Error('Received invalid data from server.');
         }
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
+      } else {
+        throw new Error('Failed to fetch summary. Please try again.');
       }
-      setError(errorMessage);
+
+    } catch (error) {
+      console.error('Error:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
