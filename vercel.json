@@ -16,6 +16,7 @@
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/server/src/server.ts" },
+    { "handle": "filesystem" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
