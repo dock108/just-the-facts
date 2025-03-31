@@ -1,51 +1,89 @@
-## Just the Facts Deployment & CI/CD Plan
+# Just the Facts Deployment Guide
 
-### Deployment Strategy Overview
-Just the Facts will utilize a robust Continuous Integration and Continuous Deployment (CI/CD) pipeline specifically optimized for streamlined web application deployments.
+## Deployment Architecture
 
-### CI/CD Pipeline Setup
+Just the Facts uses a serverless architecture deployed on Vercel:
 
-#### Version Control
-- **Platform:** GitHub
-- **Branching Strategy:** Git Flow
+- **Frontend**: React application built with Vite
+- **Backend**: Vercel Serverless Functions (in the `/api` directory)
+- **Database**: None (stateless application)
 
-#### Continuous Integration
-- Automated build processes triggered by commits and pull requests to `develop` and `main` branches.
-- Automatic execution of code linting, static analysis, and unit tests on each commit.
+## Deployment Process
 
-#### Continuous Deployment
-- Automated web deployments upon merging to the `main` branch, subject to passing tests and review approvals.
+### Prerequisites
 
-### Deployment Steps & Checklist
+- A GitHub account
+- A Vercel account
+- OpenAI API key
+- Serper API key
 
-#### Web Deployment
-- Compile and build React.js application.
-- Deploy application to hosting provider (e.g., Vercel, Netlify, AWS Amplify).
-- Verify HTTPS and SSL certifications.
-- Execute immediate post-deployment health checks and smoke tests.
+### Step-by-Step Deployment
 
-### Rollback Strategy
-- Rapid rollback to previous stable version through deployment platform configurations in case of deployment issues.
+1. **Push Code to GitHub**:
+   - Ensure your repository has the latest code
+   - The project structure should follow the guidelines in the README
 
-### Monitoring & Alerting
-- Real-time monitoring of application uptime, responsiveness, and error rates.
-- Utilize tools such as Sentry, Firebase Analytics, or Google Analytics to gain actionable operational insights.
+2. **Create a New Project on Vercel**:
+   - Go to [Vercel](https://vercel.com) and sign in
+   - Create a new project and import your GitHub repository
+   - Configure the following settings:
+     - Framework Preset: Vite
+     - Root Directory: client
+     - Build Command: npm run build
+     - Output Directory: dist
 
-### Production Readiness Criteria
-- Successful passing of all automated test suites.
-- Completion of performance and security reviews without significant issues.
-- Fully updated and approved comprehensive documentation.
-- Stakeholder notifications and explicit deployment approvals.
+3. **Configure Environment Variables**:
+   - Add the following environment variables in Vercel:
+     - `OPENAI_API_KEY`: Your OpenAI API key
+     - `SERPER_API_KEY`: Your Serper API key
 
-### Tools & Platforms
-- **CI/CD:** GitHub Actions
-- **Hosting Providers:** AWS, Vercel, Netlify
-- **Monitoring & Analytics:** Firebase Analytics, Sentry, Google Analytics
+4. **Deploy**:
+   - Click "Deploy"
+   - Vercel will build and deploy your application
+   - After deployment, your app will be available at a Vercel-provided URL
 
-### Post-Deployment Validation
-- Conduct immediate production smoke tests following deployment.
-- Continuously monitor application usage and promptly respond to user feedback or reported issues.
+### Continuous Deployment
 
-### Continuous Improvement
-- Regular evaluation and enhancement of CI/CD pipeline efficiency and effectiveness.
-- Continuous iteration informed by deployment performance, user feedback, and technological developments.
+Vercel automatically sets up continuous deployment:
+
+- Any push to the `main` branch will trigger a new deployment
+- Each deployment creates a unique URL for preview
+- Successful deployments are automatically promoted to production
+
+## Monitoring & Maintenance
+
+- **Logs**: Access deployment and function logs in the Vercel dashboard
+- **Analytics**: Use Vercel Analytics to monitor performance and usage
+- **Updates**: Regularly update dependencies and API keys
+
+## Troubleshooting
+
+Common deployment issues:
+
+1. **Build Failures**:
+   - Check build logs in Vercel for errors
+   - Ensure all dependencies are correctly installed
+
+2. **API Errors**:
+   - Verify environment variables are correctly set
+   - Check function logs for API-specific errors
+
+3. **404 Errors**:
+   - Ensure your deployment settings are correct
+   - Verify that the paths in your application match the Vercel configuration
+
+## Rollback Strategy
+
+To rollback to a previous version:
+
+1. Go to the Vercel dashboard for your project
+2. Navigate to "Deployments"
+3. Find the previous working deployment
+4. Click "..." and select "Promote to Production"
+
+## Security Considerations
+
+- Store API keys as environment variables, never in code
+- Regularly rotate API keys
+- Implement rate limiting to prevent abuse
+- Monitor for unusual activity
