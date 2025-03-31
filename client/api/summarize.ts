@@ -24,9 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  // Get API keys from environment variables
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-  const SERPER_API_KEY = process.env.SERPER_API_KEY;
+  // Get API keys from environment variables - use Vite env vars for local dev
+  const OPENAI_API_KEY = process.env.VITE_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  const SERPER_API_KEY = process.env.VITE_SERPER_API_KEY || process.env.SERPER_API_KEY;
 
   // Enhanced debug logging for API keys
   console.log(`OpenAI API Key configured: ${OPENAI_API_KEY ? 'Yes' : 'No'}`);
