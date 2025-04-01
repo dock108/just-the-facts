@@ -1,0 +1,86 @@
+/* Import a basic serif and sans-serif font (example using Google Fonts - requires internet) */
+@import url('https://fonts.googleapis.com/css2?family=Georgia&family=Helvetica+Neue:wght@400;700&display=swap');
+
+/* Reset default styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Helvetica Neue', sans-serif; /* Default sans-serif for UI */
+  line-height: 1.6;
+  background-color: #fdfdfd; /* Slightly off-white background */
+  color: #333; /* Dark grey text */
+  padding: 20px;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  font-family: 'Georgia', serif; /* Serif for headings and potentially summaries */
+  margin-bottom: 0.75em;
+  font-weight: normal; /* Less heavy headings */
+}
+
+a {
+  color: #0070f3; /* Standard link blue, minimal highlight */
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Basic Container/Layout */
+.container {
+  padding: 0 1rem;
+}
+
+/* Ad Placeholders */
+.ad-placeholder {
+  background-color: #e0e0e0;
+  border: 1px dashed #aaa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.ad-bottom {
+  height: 90px; /* Standard banner height */
+  margin-top: 40px;
+}
+
+.ad-side {
+  width: 160px; /* Standard skyscraper width */
+  height: 600px;
+  /* Positioning would depend on layout */
+}
+
+/* Utility Classes */
+.text-serif {
+  font-family: 'Georgia', serif;
+}
+
+.text-sans-serif {
+  font-family: 'Helvetica Neue', sans-serif;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+  .container {
+    padding: 0 0.5rem;
+  }
+}
