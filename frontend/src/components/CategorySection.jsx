@@ -3,11 +3,11 @@ import SummaryItem from './SummaryItem';
 import styles from './CategorySection.module.css'; // Import the CSS Module
 
 // Component to display summaries for a specific category
-function CategorySection({ categoryName, summaries, isLoading, id }) {
+function CategorySection({ categoryName, summaries, isLoading }) {
   
   return (
-    // Use styles from the CSS module and add the id
-    <section id={id} className={styles.section}>
+    // Use styles from the CSS module
+    <section className={styles.section}>
       <h2 className={styles.heading}>
         {categoryName}
       </h2>

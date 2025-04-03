@@ -12,11 +12,6 @@ const categories = [
   'Finance', 'Healthcare', 'Major Weather Events', 'Miscellaneous'
 ];
 
-// Helper function to generate IDs
-const generateCategoryId = (categoryName) => {
-  return `category-${categoryName.toLowerCase().replace(/\s+/g, '-')}`;
-};
-
 export default function Home() {
   // --- DEBUG LOGGING --- 
   console.log("Home component rendering...");
@@ -146,17 +141,6 @@ export default function Home() {
     );
   }
 
-  // --- Scroll Function ---
-  const scrollToCategory = (categoryId) => {
-    const element = document.getElementById(categoryId);
-    if (element) {
-      element.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start', // Align the top of the element to the top of the scroll container
-      });
-    }
-  };
-
   // Define styles for ad placeholders
   const adRightStyle = {
     width: '200px', // Adjust width as needed
@@ -199,30 +183,6 @@ export default function Home() {
     flex: 1 // Allow the main content area to grow
   };
 
-  const categoryNavStyle = {
-    display: 'flex',
-    overflowX: 'auto',
-    padding: '8px 0',
-    margin: '0.25em 0', // Further reduced top/bottom margin
-    borderTop: '1px solid #eee',
-    borderBottom: '1px solid #eee',
-    backgroundColor: '#f9f9f9',
-    scrollbarWidth: 'thin',
-    scrollbarColor: '#ccc #f9f9f9'
-  };
-
-  const categoryButtonStyle = {
-    padding: '8px 15px',
-    margin: '0 5px',
-    cursor: 'pointer',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    backgroundColor: 'white',
-    whiteSpace: 'nowrap', // Prevent wrapping
-    fontSize: '0.9rem',
-    transition: 'background-color 0.2s ease, border-color 0.2s ease'
-  };
-
   return (
     // Apply flex container style to the wrapper around main content and right ad
     <div style={mainContainerStyle}>
@@ -237,24 +197,6 @@ export default function Home() {
             Your daily dose of concise, factual news summaries.
           </p>
         </header>
-
-        {/* --- Category Navigation Bar --- */}
-        <nav style={categoryNavStyle} aria-label="Category quick links">
-          {categories.map((category) => {
-            const categoryId = generateCategoryId(category);
-            return (
-              <button 
-                key={categoryId}
-                onClick={() => scrollToCategory(categoryId)}
-                style={categoryButtonStyle}
-                onMouseOver={e => e.currentTarget.style.backgroundColor = '#eee'} // Simple hover effect
-                onMouseOut={e => e.currentTarget.style.backgroundColor = 'white'}
-              >
-                {category}
-              </button>
-            );
-          })}
-        </nav>
 
         {/* Search Box Section - Assuming it exists and is styled separately */}
         <SearchBox />
@@ -278,8 +220,6 @@ export default function Home() {
                 {columnCategories.map((category) => (
                   <CategorySection 
                     key={category} 
-                    // --- Assign the generated ID --- 
-                    id={generateCategoryId(category)}
                     categoryName={category}
                     summaries={summaries[category] || []} // Use summaries state variable
                     isLoading={isLoading && !summaries[category]} // Use summaries state variable

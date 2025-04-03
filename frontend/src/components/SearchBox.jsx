@@ -121,8 +121,8 @@ function SearchBox() {
 
   return (
     <section className="search-section" style={{ 
-      margin: '0 0 0.75em 0',
-      padding: '1.25em 1.5em',
+      margin: '2em 0', 
+      padding: '1.5em', 
       borderTop: '3px solid #333',
       borderBottom: '1px solid #ddd',
       backgroundColor: '#f9f9f9' 
@@ -130,14 +130,14 @@ function SearchBox() {
       <h3 style={{ 
         fontSize: '1.4rem', 
         fontWeight: 'bold',
-        marginBottom: '0.5em',
+        marginBottom: '1em',
         fontFamily: 'Georgia, serif'
       }}>Search Just the Facts</h3>
       
       <form onSubmit={handleSubmit} style={{ 
         display: 'flex', 
         gap: '10px', 
-        marginBottom: '0.75em' 
+        marginBottom: '1.5em' 
       }}>
         <input
           type="text"
@@ -182,7 +182,7 @@ function SearchBox() {
       {/* Display Result in Newspaper Style */}      
       {result && (
         <div className="search-results newspaper-style" style={{ 
-          marginTop: '1em', 
+          marginTop: '1.5em', 
           fontFamily: 'Georgia, serif',
           lineHeight: '1.6'
         }}>
