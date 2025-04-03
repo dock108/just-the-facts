@@ -19,11 +19,7 @@
 - Search box functionality calling a backend API route.
 - Placeholder `/api/search` Next.js API route (`frontend/src/app/api/search/route.js`) replicating Serper+OpenAI logic.
 - Frontend README (`frontend/README.md`).
-- Ad placeholders (right sticky banner, bottom fixed banner) on the frontend page (`page.js`).
-- Category navigation bar above search box with smooth-scrolling links (`page.js`).
-- ID props to `CategorySection` for scroll targeting.
-- Function to generate category IDs (`page.js`).
-- Scroll-to-category functionality (`page.js`).
+- Ad placeholders on the frontend.
 
 ### Changed
 - **Refactored Frontend UI/UX:** Migrated inline styles to CSS Modules across `page.js`, `CategorySection.jsx`, and `SummaryItem.jsx`.
@@ -32,13 +28,7 @@
 - Standardized margins, padding, and layout using CSS Modules for better consistency.
 - Updated column layout (`page.module.css`) for better centering and responsiveness.
 - Updated fonts used in `globals.css` to Georgia and Helvetica Neue.
-- **Search Functionality:** Updated search API route (`/api/search`) prompt and `SearchBox.jsx` component to generate and display results in newspaper style (bold header, paragraphs, `[^1^]` footnotes, formatted sources).
-- Made `SearchBox.jsx` footnote parsing more robust to handle variations (`[^1^]:` vs `1:`).
-- Refined search prompt (`general-prompt.md`) to filter out news primarily focused on reactions/commentary about other news events.
-- **Layout:** Restructured `page.js` using flexbox to accommodate ads.
-- Reduced vertical whitespace between header, category nav, search box, and summaries (`page.js`, `SearchBox.jsx`, `page.module.css`).
-- **Category Headings:** Made category headings (`<h2>`) more pronounced (`CategorySection.module.css`) with increased font size, uppercase transform, margin, and letter spacing.
-- Changed category heading `font-weight` from `bold` to `700` to troubleshoot rendering.
+- Updated API route (`/api/search`) prompt to prevent sources in summary text.
 
 ### Removed
 - Redundant `backend/search_query.py` script (logic moved to API route).
@@ -50,7 +40,6 @@
 - Frontend not displaying Supabase data due to missing RLS read policy.
 - Syntax error in `SummaryItem.jsx` during source link formatting.
 - Major oversized scaling issue on desktop views.
-- JavaScript build errors in search API route (`/api/search/route.js`) due to syntax issues.
 
 ## [0.1.0] - 2025-04-01
 

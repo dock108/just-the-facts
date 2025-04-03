@@ -14,12 +14,10 @@
 
 .heading {
   font-family: 'Times New Roman', Times, serif; /* Classic newspaper heading font */
-  font-size: 1.75rem; /* Adjust heading size */
-  font-weight: 700;
-  margin-bottom: 1rem; /* Space below heading */
+  font-size: 1.5rem; /* Adjust heading size */
+  font-weight: bold;
+  margin-bottom: 0.8rem; /* Space below heading */
   color: #333;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .loadingText {

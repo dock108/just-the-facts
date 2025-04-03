@@ -202,8 +202,8 @@ export default function Home() {
   const categoryNavStyle = {
     display: 'flex',
     overflowX: 'auto',
-    padding: '6px 0', // Even smaller padding
-    margin: '0.25em 0', // Minimal top/bottom margin
+    padding: '8px 0',
+    margin: '0.25em 0', // Further reduced top/bottom margin
     borderTop: '1px solid #eee',
     borderBottom: '1px solid #eee',
     backgroundColor: '#f9f9f9',
