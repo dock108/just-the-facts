@@ -19,16 +19,29 @@
 - Search box functionality calling a backend API route.
 - Placeholder `/api/search` Next.js API route (`frontend/src/app/api/search/route.js`) replicating Serper+OpenAI logic.
 - Frontend README (`frontend/README.md`).
-- Ad placeholders on the frontend.
+- Ad placeholders (sticky right, fixed bottom) on the frontend (`page.js`).
+- Category Navigation Bar with smooth scroll-to-section functionality (`page.js`).
+- Dynamic column population logic: places 4 longest summaries in the middle column (`page.js`).
 
 ### Changed
 - **Refactored Frontend UI/UX:** Migrated inline styles to CSS Modules across `page.js`, `CategorySection.jsx`, and `SummaryItem.jsx`.
-- **Scaling & Typography:** Addressed oversized elements by standardizing on `rem` units and setting a base `html` font size of `10px` in `globals.css` for global scaling.
-- Adjusted font sizes for headings, body text, and sources/footnotes based on the new `10px` base `rem`.
-- Standardized margins, padding, and layout using CSS Modules for better consistency.
-- Updated column layout (`page.module.css`) for better centering and responsiveness.
+- **Layout & Styling:**
+    - Updated column layout (`page.module.css`) for better centering and responsiveness.
+    - Changed main content background to white (`page.module.css`).
+    - Removed backgrounds/borders from Category Nav Bar and Search Box for seamless integration (`page.js`, `SearchBox.jsx`).
+    - Reduced vertical spacing between header, nav, search, and content sections (`page.js`, `SearchBox.jsx`, `page.module.css`).
+    - Added padding to page bottom (`page.module.css`) to allow scrolling past fixed bottom ad.
+- **Scaling & Typography:**
+    - Addressed oversized elements by standardizing on `rem` units and setting a base `html` font size of `10px` in `globals.css` for global scaling.
+    - Adjusted font sizes for headings, body text, and sources/footnotes based on the new `10px` base `rem`.
+    - Increased overall font sizes slightly for better readability (`page.module.css`, `CategorySection.module.css`, `SearchBox.jsx`, `page.js`).
+- **Search Functionality:**
+    - Updated search results display to match newspaper style (bold headers, footnotes) (`SearchBox.jsx`).
+    - Updated search prompt (`general-prompt.md`) to filter out summaries focused on reactions/commentary about news.
+    - Improved footnote parsing/rendering robustness (`SearchBox.jsx`).
+    - Modified source link display in search results to show URL explicitly (`SearchBox.jsx`).
 - Updated fonts used in `globals.css` to Georgia and Helvetica Neue.
-- Updated API route (`/api/search`) prompt to prevent sources in summary text.
+- Updated API route (`/api/search`) prompt to prevent sources in summary text and enforce footnote format.
 
 ### Removed
 - Redundant `backend/search_query.py` script (logic moved to API route).
@@ -40,6 +53,7 @@
 - Frontend not displaying Supabase data due to missing RLS read policy.
 - Syntax error in `SummaryItem.jsx` during source link formatting.
 - Major oversized scaling issue on desktop views.
+- JavaScript parsing errors in `/api/search/route.js` (template literal syntax).
 
 ## [0.1.0] - 2025-04-01
 

@@ -76,10 +76,9 @@ function SearchBox() {
 
     // 3. Process the source list lines.
     // Handles both [^1^]: [Desc](URL) and 1: [Desc](URL) formats.
-    // It looks for a line starting with optional [^, a number, ^], :, optional whitespace,
-    // then the markdown link [Desc](URL).
+    // Modified to show Description (URL) as link text.
     processedText = processedText.replace(/^\s*\[?\^?(\d+)\^?\]?:\s*\[(.*?)\]\((https?:\/\/[^()]+)\)/gm, 
-      '<sup class="footnote-source-num">$1</sup>: <a href="$3" target="_blank" rel="noopener noreferrer">$2</a>');
+      '<sup class="footnote-source-num">$1</sup>: <a href="$3" target="_blank" rel="noopener noreferrer">$2 ($3)</a>');
 
     // 4. Process any remaining standard markdown links [text](url) that weren't part of a source line
     processedText = processedText.replace(/\[(.*?)\]\((https?:\/\/[^()]+)\)/g, 
@@ -121,23 +120,25 @@ function SearchBox() {
 
   return (
     <section className="search-section" style={{ 
-      margin: '2em 0', 
-      padding: '1.5em', 
-      borderTop: '3px solid #333',
-      borderBottom: '1px solid #ddd',
-      backgroundColor: '#f9f9f9' 
+      margin: '0 0 1em 0',
+      padding: '1em 0',
+      borderTop: '1px solid #eee',
+      borderBottom: '1px solid #eee',
+      backgroundColor: 'transparent'
     }}>
       <h3 style={{ 
-        fontSize: '1.4rem', 
+        fontSize: '1.6rem',
         fontWeight: 'bold',
-        marginBottom: '1em',
-        fontFamily: 'Georgia, serif'
+        marginBottom: '0.75em',
+        fontFamily: 'Georgia, serif',
+        paddingLeft: '1.5em'
       }}>Search Just the Facts</h3>
       
       <form onSubmit={handleSubmit} style={{ 
         display: 'flex', 
-        gap: '10px', 
-        marginBottom: '1.5em' 
+        gap: '10px',
+        marginBottom: '1em',
+        padding: '0 1.5em'
       }}>
         <input
           type="text"
@@ -182,9 +183,10 @@ function SearchBox() {
       {/* Display Result in Newspaper Style */}      
       {result && (
         <div className="search-results newspaper-style" style={{ 
-          marginTop: '1.5em', 
+          marginTop: '1em',
           fontFamily: 'Georgia, serif',
-          lineHeight: '1.6'
+          lineHeight: '1.6',
+          padding: '0 1.5em'
         }}>
           {paragraphs.map((paragraph, index) => {
             // Check if this is likely a header (starts with ** or contains **)

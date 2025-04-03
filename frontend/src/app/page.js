@@ -6,11 +6,16 @@ import SearchBox from '../components/SearchBox';
 import CategorySection from '../components/CategorySection';
 import styles from './page.module.css'; // Import the CSS Module
 
-// Define categories - match these with your backend categories if possible
-const categories = [
-  'World News', 'US News', 'Politics', 'Sports', 'Technology', 
+// Define static categories for nav bar and initial structure
+const staticCategories = [
+  'World News', 'US News', 'Politics', 'Sports', 'Technology',
   'Finance', 'Healthcare', 'Major Weather Events', 'Miscellaneous'
 ];
+
+// Helper function to generate IDs
+const generateCategoryId = (categoryName) => {
+  return `category-${categoryName.toLowerCase().replace(/\s+/g, '-')}`;
+};
 
 export default function Home() {
   // --- DEBUG LOGGING --- 
@@ -20,6 +25,8 @@ export default function Home() {
   const [summaries, setSummaries] = useState({}); // Store summaries by category
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  // State to hold the dynamically ordered categories for columns
+  const [columnCategories, setColumnCategories] = useState({ left: [], middle: [], right: [] });
 
   // Fetch today's summaries from Supabase when the component mounts
   useEffect(() => {
@@ -27,14 +34,14 @@ export default function Home() {
     console.log("useEffect hook running...");
     // --- DEBUG LOGGING --- 
 
-    const fetchSummaries = async () => {
+    const fetchAndOrganizeSummaries = async () => {
       // --- DEBUG LOGGING --- 
-      console.log("fetchSummaries function started...");
+      console.log("fetchAndOrganizeSummaries function started...");
       // --- DEBUG LOGGING --- 
 
       if (!supabase) {
         // --- DEBUG LOGGING ---
-        console.error("fetchSummaries: Supabase client is null!");
+        console.error("fetchAndOrganizeSummaries: Supabase client is null!");
         setError("Supabase client not initialized. Check .env.local");
         setIsLoading(false);
         return;
@@ -66,80 +73,99 @@ export default function Home() {
           throw dbError;
         }
 
-        // Group summaries, keeping only the LATEST for each category
-        const latestSummariesByCategory = data.reduce((acc, summary) => {
-          const categoryFromDb = summary.category;
-          // Standardize the key, e.g., convert to lowercase for comparison and storage
-          const standardizedCategoryKey = categoryFromDb?.toLowerCase(); 
-          
-          if (!standardizedCategoryKey) return acc; // Skip if category is missing/null
-
-          // If we haven't seen this standardized category key yet, add this summary 
-          // (it's the latest due to sorting)
-          if (!acc[standardizedCategoryKey]) {
-             // Store the summary using the STANDARDIZED key, 
-             // but preserve the ORIGINAL category name within the summary object itself for display
-            acc[standardizedCategoryKey] = [{ ...summary, category: categoryFromDb }]; 
+        // 1. Get the latest summary for each unique category
+        const latestSummariesMap = new Map();
+        data.forEach(summary => {
+          const category = summary.category;
+          if (category && !latestSummariesMap.has(category.toLowerCase())) {
+            latestSummariesMap.set(category.toLowerCase(), {
+              ...summary,
+              // Calculate length for sorting
+              summaryLength: summary.summary?.length || 0 
+            });
           }
-          // If we have seen it, do nothing (we already have the latest)
+        });
+
+        // Convert map values to array
+        const latestSummariesArray = Array.from(latestSummariesMap.values());
+
+        // 2. Sort summaries by length (descending)
+        latestSummariesArray.sort((a, b) => b.summaryLength - a.summaryLength);
+
+        // 3. Prepare summaries state (keyed by original Title Case category)
+        const finalSummariesState = latestSummariesArray.reduce((acc, summary) => {
+          // Find the original static category name (case-insensitive match)
+          const originalCategoryName = staticCategories.find(staticCat => 
+            staticCat.toLowerCase() === summary.category.toLowerCase()
+          );
+          if (originalCategoryName) {
+            acc[originalCategoryName] = [summary]; // Store as an array
+          }
           return acc;
         }, {});
+        setSummaries(finalSummariesState);
 
-        // --- DEBUG LOGGING START ---
-        console.log("Latest summary selected for each category (using standardized keys):", latestSummariesByCategory);
-        // Specifically log the selected US News summary if it exists (using standardized key)
-        const usNewsKey = 'us news'; // Use the standardized key for lookup
-        if (latestSummariesByCategory[usNewsKey]) {
-          console.log("Selected 'US News' Summary Object (standardized key):", latestSummariesByCategory[usNewsKey][0]);
-          console.log("Selected 'US News' Summary Text (standardized key):", latestSummariesByCategory[usNewsKey][0]?.summary);
-        } else {
-          console.log("'US News' category not found in the latest fetched data using standardized key.");
-        }
-        // --- DEBUG LOGGING END ---
-
-        // Map the standardized keys back to the expected Title Case for component props if needed
-        // Or adjust CategorySection/Map logic to handle lowercase keys
-        // For simplicity now, let's assume the rest of the component logic uses the category names
-        // from the `categories` array defined at the top. We need to pass the correct data.
+        // 4. Distribute categories into columns
+        const numMiddle = 4;
+        const middleColCats = latestSummariesArray.slice(0, numMiddle).map(s => s.category);
+        const remainingCats = latestSummariesArray.slice(numMiddle).map(s => s.category);
         
-        // Create the final state object using the original Title Case categories from the top array
-        const finalSummariesState = categories.reduce((stateAcc, titleCaseCategory) => {
-            const lowerCaseKey = titleCaseCategory.toLowerCase();
-            if (latestSummariesByCategory[lowerCaseKey]) {
-                // Get the summary array stored under the lowercase key
-                // The summary object inside still has the original casing in its .category property
-                stateAcc[titleCaseCategory] = latestSummariesByCategory[lowerCaseKey];
-            }
-            return stateAcc;
-        }, {});
-        
-        console.log("Final summaries state being set (using Title Case keys):");
+        // Distribute remaining between left and right
+        const leftColCats = [];
+        const rightColCats = [];
+        remainingCats.forEach((cat, index) => {
+          if (index % 2 === 0) {
+            leftColCats.push(cat);
+          } else {
+            rightColCats.push(cat);
+          }
+        });
 
-        setSummaries(finalSummariesState); // Set state using Title Case keys
+        // Find the original static category names for column arrays
+        const findOriginalCase = (catList) => catList.map(catLower => 
+          staticCategories.find(staticCat => staticCat.toLowerCase() === catLower.toLowerCase())
+        ).filter(Boolean); // Filter out any nulls if a match wasn't found
+
+        setColumnCategories({
+          left: findOriginalCase(leftColCats),
+          middle: findOriginalCase(middleColCats),
+          right: findOriginalCase(rightColCats)
+        });
 
       } catch (err) {
-        console.error("Error in fetchSummaries catch block:", err);
-        setError(err.message || "Failed to load summaries from database.");
+        console.error("Error fetching/organizing summaries:", err);
+        setError(err.message || "Failed to load summaries.");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSummaries();
+    fetchAndOrganizeSummaries();
   }, []); // Empty dependency array ensures this runs only once on mount
 
   // Simple multi-column layout (example)
   // We now use CSS Grid defined in page.module.css
   const columnCount = 3; // Define logical columns for splitting data
-  const categoriesPerColumn = Math.ceil(categories.length / columnCount);
+  const categoriesPerColumn = Math.ceil(staticCategories.length / columnCount);
 
   // Split categories into logical columns for mapping
   const columnsData = [];
   for (let i = 0; i < columnCount; i++) {
     columnsData.push(
-      categories.slice(i * categoriesPerColumn, (i + 1) * categoriesPerColumn)
+      staticCategories.slice(i * categoriesPerColumn, (i + 1) * categoriesPerColumn)
     );
   }
+
+  // --- Scroll Function ---
+  const scrollToCategory = (categoryId) => {
+    const element = document.getElementById(categoryId);
+    if (element) {
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start', // Align the top of the element to the top of the scroll container
+      });
+    }
+  };
 
   // Define styles for ad placeholders
   const adRightStyle = {
@@ -183,6 +209,31 @@ export default function Home() {
     flex: 1 // Allow the main content area to grow
   };
 
+  const categoryNavStyle = {
+    display: 'flex',
+    overflowX: 'auto',
+    padding: '8px 0',
+    margin: '0', // Remove top/bottom margin
+    borderTop: 'none', // Remove border
+    borderBottom: '1px solid #eee', // Keep bottom border as separator
+    backgroundColor: 'transparent', // Remove background
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#ccc #f9f9f9'
+  };
+
+  const categoryButtonStyle = {
+    padding: '8px 15px',
+    margin: '0 5px',
+    cursor: 'pointer',
+    border: 'none',
+    borderRadius: '0',
+    backgroundColor: 'transparent',
+    whiteSpace: 'nowrap',
+    fontSize: '1rem',
+    transition: 'color 0.2s ease',
+    color: '#333'
+  };
+
   return (
     // Apply flex container style to the wrapper around main content and right ad
     <div style={mainContainerStyle}>
@@ -198,6 +249,26 @@ export default function Home() {
           </p>
         </header>
 
+        {/* --- Category Navigation Bar --- */}
+        <nav style={categoryNavStyle} aria-label="Category quick links">
+          {/* Use staticCategories for nav bar consistency */}
+          {staticCategories.map((category) => {
+            const categoryId = generateCategoryId(category);
+            return (
+              <button 
+                key={categoryId}
+                onClick={() => scrollToCategory(categoryId)}
+                style={categoryButtonStyle}
+                // Add hover effect for transparent buttons
+                onMouseOver={e => e.currentTarget.style.color = '#007bff'} 
+                onMouseOut={e => e.currentTarget.style.color = '#333'}
+              >
+                {category}
+              </button>
+            );
+          })}
+        </nav>
+
         {/* Search Box Section - Assuming it exists and is styled separately */}
         <SearchBox />
 
@@ -211,22 +282,42 @@ export default function Home() {
           {/* Column Layout - Use columnLayout class */}
           {/* We map over the logical columnsData to distribute categories into the grid columns */}        
           <div className={styles.columnLayout}>
-            {columnsData.map((columnCategories, colIndex) => (
-              // Each iteration here represents categories intended for ONE logical column,
-              // but they will flow into the CSS Grid columns automatically.
-              // We don't need an explicit .column div here if CSS grid handles placement.
-              // However, keeping it might be useful for future styling or structure.
-              <div key={colIndex} className={styles.column}>
-                {columnCategories.map((category) => (
-                  <CategorySection 
-                    key={category} 
-                    categoryName={category}
-                    summaries={summaries[category] || []} // Use summaries state variable
-                    isLoading={isLoading && !summaries[category]} // Use summaries state variable
-                  />
-                ))}
-              </div>
-            ))}
+            {/* Render Left Column */}
+            <div className={styles.column}>
+              {columnCategories.left.map((category) => (
+                <CategorySection 
+                  key={category} 
+                  id={generateCategoryId(category)}
+                  categoryName={category}
+                  summaries={summaries[category] || []}
+                  isLoading={isLoading && !summaries[category]}
+                />
+              ))}
+            </div>
+            {/* Render Middle Column (Longest) */}
+            <div className={styles.column}>
+              {columnCategories.middle.map((category) => (
+                <CategorySection 
+                  key={category} 
+                  id={generateCategoryId(category)}
+                  categoryName={category}
+                  summaries={summaries[category] || []}
+                  isLoading={isLoading && !summaries[category]}
+                />
+              ))}
+            </div>
+            {/* Render Right Column */}
+            <div className={styles.column}>
+              {columnCategories.right.map((category) => (
+                <CategorySection 
+                  key={category} 
+                  id={generateCategoryId(category)}
+                  categoryName={category}
+                  summaries={summaries[category] || []}
+                  isLoading={isLoading && !summaries[category]}
+                />
+              ))}
+            </div>
           </div>
           {/* Fallback if loading completes but no summaries are found at all */}
           {!isLoading && !error && Object.keys(summaries).length === 0 && (

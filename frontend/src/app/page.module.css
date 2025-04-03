@@ -11,9 +11,10 @@
   align-items: center;
   justify-items: center;
   min-height: 100svh;
-  padding: 80px;
+  padding: 80px 80px 240px 80px;
   gap: 64px;
   font-family: var(--font-geist-sans);
+  background-color: var(--background, #fff);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,11 +31,12 @@
 .main {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 16px;
   grid-row-start: 2;
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
+  background-color: #fff;
 }
 
 .main ol {
@@ -173,20 +175,20 @@ a.secondary {
 /* --- Newspaper Layout Styles --- */
 .header {
   text-align: center;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid var(--gray-alpha-200);
-  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.75rem;
 }
 
 .mainHeading {
-  font-size: 2.8rem;
+  font-size: 3.3rem;
   font-weight: bold;
   font-family: 'Times New Roman', Times, serif;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
 }
 
 .tagline {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: #555;
   font-family: 'Georgia', serif;
   margin-bottom: 0;
@@ -194,7 +196,7 @@ a.secondary {
 
 .summariesSection {
   width: 100%;
-  margin-top: 2rem;
+  margin-top: 0;
 }
 
 .summariesHeading {
