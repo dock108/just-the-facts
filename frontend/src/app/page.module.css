@@ -32,6 +32,9 @@
   flex-direction: column;
   gap: 32px;
   grid-row-start: 2;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .main ol {
@@ -166,3 +169,63 @@ a.secondary {
     filter: invert();
   }
 }
+
+/* --- Newspaper Layout Styles --- */
+.header {
+  text-align: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--gray-alpha-200);
+  padding-bottom: 1rem;
+}
+
+.mainHeading {
+  font-size: 2.8rem;
+  font-weight: bold;
+  font-family: 'Times New Roman', Times, serif;
+  margin-bottom: 0.25rem;
+}
+
+.tagline {
+  font-size: 1.1rem;
+  color: #555;
+  font-family: 'Georgia', serif;
+  margin-bottom: 0;
+}
+
+.summariesSection {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.summariesHeading {
+  display: none;
+}
+
+.columnLayout {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.column {
+  /* No specific column styles needed now */
+}
+
+@media (max-width: 1024px) {
+  .columnLayout {
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .columnLayout {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .page {
+    padding: 24px;
+  }
+}
+/* --- End Newspaper Layout Styles --- */

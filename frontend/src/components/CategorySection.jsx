@@ -1,35 +1,38 @@
 import React from 'react';
 import SummaryItem from './SummaryItem';
+import styles from './CategorySection.module.css'; // Import the CSS Module
 
 // Component to display summaries for a specific category
-function CategorySection({ categoryName, summaries, isLoading }) {
+function CategorySection({ categoryName, summaries, isLoading, id }) {
   
   return (
-    <section style={{ marginBottom: '2em' }}>
-      <h2 style={{ borderBottom: '2px solid #333', paddingBottom: '0.3em', marginBottom: '1em' }}>
+    // Use styles from the CSS module and add the id
+    <section id={id} className={styles.section}>
+      <h2 className={styles.heading}>
         {categoryName}
       </h2>
       {
         isLoading ? (
-          <p>Loading {categoryName} summaries...</p>
+          <p className={styles.loadingText}>Loading {categoryName} summaries...</p>
         ) : summaries && summaries.length > 0 ? (
           summaries.map((item) => {
             // Ensure item has necessary properties
-            // Parse the comma-separated 'sources' string into an array of links
-            const sourceLinksArray = item.sources 
-              ? item.sources.split(',').map(link => link.trim()).filter(link => !!link) // Split, trim, and remove empty strings
-              : []; // Default to empty array if no sources
+            // const sourceLinksArray = item.sources 
+            //   ? item.sources.split(',').map(link => link.trim()).filter(link => !!link) // Split, trim, and remove empty strings
+            //   : []; // Default to empty array if no sources
+
+            const sourcesJsonString = item.sources || '[]'; // Re-enabled: Default to empty JSON array string
 
             return (
               <SummaryItem 
                 key={item.id} // Use a unique key, assuming 'id' from Supabase
                 summary={item.summary} 
-                sourceLinks={sourceLinksArray} // Pass the array of links
+                sourceLinks={sourcesJsonString} // Re-enabled: Pass the JSON string
               />
             );
           })
         ) : (
-          <p>No summaries available for {categoryName} today.</p>
+          <p className={styles.noSummariesText}>No summaries available for {categoryName} today.</p>
         )
       }
     </section>

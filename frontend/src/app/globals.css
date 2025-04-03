@@ -10,60 +10,84 @@
   padding: 0;
 }
 
-body {
-  font-family: 'Helvetica Neue', sans-serif; /* Default sans-serif for UI */
-  line-height: 1.6;
-  background-color: #fdfdfd; /* Slightly off-white background */
-  color: #333; /* Dark grey text */
-  padding: 20px;
+html {
+  /* Set base font size to 10px for scaling rem units */
+  /* Default is 16px */
+  font-size: 10px; 
 }
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+  font-family: 'Georgia', serif; /* Set base font to Georgia */
+  padding: 1rem; /* Add some base padding */
+  line-height: 1.6;
+}
+
+/* Remove Tailwind base styles if you imported them */
+/* @tailwind base; */
+/* @tailwind components; */
+/* @tailwind utilities; */
 
 main {
   max-width: 1200px;
   margin: 0 auto;
 }
 
-h1, h2, h3 {
-  font-family: 'Georgia', serif; /* Serif for headings and potentially summaries */
-  margin-bottom: 0.75em;
-  font-weight: normal; /* Less heavy headings */
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
 }
 
 a {
-  color: #0070f3; /* Standard link blue, minimal highlight */
+  color: inherit;
   text-decoration: none;
 }
 
-a:hover {
-  text-decoration: underline;
+/* Styles for Ad Placeholders */
+.ad-placeholder {
+  border: 1px dashed #ccc;
+  padding: 1rem;
+  text-align: center;
+  color: #999;
+  background-color: #f9f9f9;
+  margin: 1rem 0; /* Add some vertical margin */
 }
+
+.ad-bottom {
+  /* Specific styles for bottom banner if needed */
+  min-height: 90px; /* Example height */
+}
+
+/* Example of responsive adjustments for ads if needed */
+/* @media (max-width: 768px) {
+  .ad-side {
+    display: none; 
+  }
+} */
 
 /* Basic Container/Layout */
 .container {
   padding: 0 1rem;
-}
-
-/* Ad Placeholders */
-.ad-placeholder {
-  background-color: #e0e0e0;
-  border: 1px dashed #aaa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #777;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
-.ad-bottom {
-  height: 90px; /* Standard banner height */
-  margin-top: 40px;
-}
-
-.ad-side {
-  width: 160px; /* Standard skyscraper width */
-  height: 600px;
-  /* Positioning would depend on layout */
 }
 
 /* Utility Classes */
@@ -75,12 +99,59 @@ a:hover {
   font-family: 'Helvetica Neue', sans-serif;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  body {
-    padding: 10px;
+/* Specific style for the main tagline */
+.tagline {
+  color: #555; /* Slightly muted color for the tagline */
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Style for main heading */
+.main-heading {
+  font-size: 2.5rem; /* Larger font size for main title */
+  font-weight: bold;
+  text-align: center; /* Center align the main title */
+  margin-bottom: 0.5rem; /* Adjust spacing below main title */
+}
+
+/* Container for the summaries section */
+.summaries-section {
+  max-width: 1200px; /* Limit overall width */
+  margin: 2rem auto; /* Center the section and add vertical margin */
+  padding: 1rem; /* Add padding inside the section */
+}
+
+/* Heading for the summaries section */
+.summaries-heading {
+  font-size: 1.8rem; /* Larger heading for the section */
+  font-weight: bold;
+  text-align: center; /* Center the section heading */
+  margin-bottom: 1.5rem; /* Space below the heading */
+  border-bottom: 1px solid #eee; /* Subtle line below heading */
+  padding-bottom: 0.5rem; /* Padding below the text, above the line */
+}
+
+/* Styles for the multi-column layout */
+.column-layout {
+  display: grid;
+  gap: 1.5rem; /* Space between columns */
+  /* Define columns - example: 3 columns with varied widths */
+  grid-template-columns: 2fr 1fr 1fr; 
+}
+
+.column {
+  /* Individual column styling if needed */
+}
+
+/* Responsive adjustments for columns */
+@media (max-width: 1024px) {
+  .column-layout {
+    grid-template-columns: 1fr 1fr; /* 2 columns on medium screens */
   }
-  .container {
-    padding: 0 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .column-layout {
+    grid-template-columns: 1fr; /* 1 column on small screens */
   }
 }

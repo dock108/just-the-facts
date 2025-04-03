@@ -110,21 +110,29 @@ async function generateSummaryForQuery(userQuery, generalPrompt, serperContext) 
   }
 
   const systemPrompt = (
-    `${generalPrompt}\n\n` +
-    `--- Current Task ---\n` +
-    `User Query: '${userQuery}'\n` +
-    `Based *only* on the provided context below (if any), generate a concise, factual summary addressing the user's query. ` +
-    `If the context does not contain relevant information, state that clearly. ` +
-    `The summary should be concise, potentially 2-3 paragraphs if the information warrants it, but do not artificially lengthen it with filler content. Prioritize clarity and factuality based on the context. ` +
-    `Do NOT include the source URLs directly in your summary text; they will be listed separately based on the context provided.` +
-    `${contextStr}\n` +
-    `--- End Context ---`
+    `${generalPrompt}\\n\\n` +
+    `--- Current Task ---\\n` +
+    `User Query: \'${userQuery}\'\\n` +
+    `CONTEXT:\\n${contextStr}\\n` +
+    `--- End Context ---\\n\\n` +
+    `Based *only* on the provided context above (if any), generate a newspaper-style summary addressing the user\'s query. ` +
+    `Follow the newspaper format exactly: start with a bold header, use footnote references \`[^1^]\`, \`[^2^]\`, etc. within paragraphs. ` +
+    `End with a 'Sources:' section. This section MUST start with the heading 'Sources:' on its own line. ` +
+    `Each source cited in the text MUST be listed on a **separate new line** immediately following the 'Sources:' heading. ` +
+    `Each source line MUST follow the exact format: \`[^NUMBER^]: [Short Description](URL)\`. ` +
+    `Example of the required Sources section format:\\n` +
+    `Sources:\\n` +
+    `[^1^]: [Article Title 1](https://example.com/1)\\n` +
+    `[^2^]: [Article Title 2](https://example.com/2)\\n` +
+    `Ensure the output adheres strictly to this formatting. Do NOT deviate from the specified Sources format. ` +
+    `If the context does not contain relevant information, use the format for insufficient information. ` +
+    `Present ONLY factual information from the context provided.`
   );
 
-  const userMessage = `Please provide a summary for my query: '${userQuery}' using only the context given.`;
+  const userMessage = `Please provide a newspaper-style summary for my query: \'${userQuery}\' using only the context given, adhering strictly to the specified footnote and "Sources:" section formatting.`;
 
   try {
-    console.log("[API Route - OpenAI] Generating summary...");
+    console.log("[API Route - OpenAI] Generating newspaper-style summary...");
     const response = await openai.chat.completions.create({
       model: MODEL_NAME,
       messages: [
@@ -132,13 +140,19 @@ async function generateSummaryForQuery(userQuery, generalPrompt, serperContext) 
         { role: "user", content: userMessage }
       ],
       temperature: 0.1,
-      max_tokens: 300 // Slightly increased for potentially longer summaries
+      max_tokens: 600 // Increased for footnote formatting
     });
 
     const summaryText = response.choices?.[0]?.message?.content?.trim() || "Error: No summary content received from OpenAI.";
     
-    console.log("[API Route - OpenAI] Summary generated successfully.");
-    return { summary: summaryText, sources: sourceLinks };
+    console.log("[API Route - OpenAI] Newspaper-style summary generated successfully.");
+    
+    // We're no longer separately returning sourceLinks since they're now embedded in the summary
+    // with the [¹]: [Short Header](URL) format
+    return { 
+      summary: summaryText,
+      sources: [] // Empty since sources are now embedded in the summary text
+    };
 
   } catch (error) {
     console.error(`[API Route - OpenAI] Error calling OpenAI API:`, error);

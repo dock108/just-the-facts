@@ -1,6 +1,6 @@
 # backend/main.py
 # This script integrates OpenAI to generate daily news summaries based on prompts
-# and stores them in a Supabase database.
+# and stores them in a Supabase database. It uses Serper News API to fetch articles.
 
 # --- Installation Instructions ---
 # 1. Ensure Python is installed.
@@ -14,20 +14,23 @@
 #    OPENAI_API_KEY=your_openai_key
 #    SUPABASE_URL=your_supabase_project_url
 #    SUPABASE_KEY=your_supabase_anon_key
-#    SERPER_API_KEY=your_serper_api_key
+#    SERPER_API_KEY=your_serper_api_key  # Key from serper.dev
 # 6. Update SUPABASE_URL in .env with your actual Supabase project URL.
 # 7. Run the script from the project root directory:
 #    python backend/main.py
 # ---
 
 import os
-import re
-import json  # Added for Serper API interaction
+import json  # Added for Serper API request
+import requests  # Added for Serper API request
 from datetime import date, datetime
 from dotenv import load_dotenv
 from openai import OpenAI
 from supabase import create_client, Client
-import requests  # Added for Serper API requests
+# Removed urlparse import
+# Removed NewsApiClient import
+# Removed re import (no longer needed)
+# Removed timedelta import (no longer needed)
 
 # --- Configuration ---
 # Load environment variables from .env file located in the same directory as the script
@@ -36,15 +39,15 @@ load_dotenv(dotenv_path=dotenv_path)
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")  # Use the anon key
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")  # Load Serper Key
 
 # Load model from .env or use default
-MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4o")  # Default to gpt-4o if not set
+MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 # Adjust the path to be relative to the script's location
 PROMPTS_DIR = os.path.join(os.path.dirname(__file__), '..', 'prompts')
-DAILY_PROMPTS_FILE = os.path.join(PROMPTS_DIR, "daily-prompts.md")
+DAILY_PROMPTS_FILE = os.path.join(PROMPTS_DIR, "daily-prompts.md")  # This remains but is unused by load_category_prompts
 
 # Supabase Table Schema Definition (for reference)
 # Table Name: daily_summaries
@@ -54,10 +57,9 @@ DAILY_PROMPTS_FILE = os.path.join(PROMPTS_DIR, "daily-prompts.md")
 #   generation_date: timestamptz (index)
 #   category: text (index)
 #   summary: text
-#   sources: text (optional, depends on prompt/model output)
+#   sources: text (stores JSON string: '[{"name": "Source Name", "url": "..."}, ...]')
 
 # --- OpenAI Client Initialization ---
-# (Adding this function back as it seemed to be removed)
 def initialize_openai_client() -> OpenAI:
     """Initializes and returns the OpenAI client."""
     if not OPENAI_API_KEY:
@@ -65,29 +67,29 @@ def initialize_openai_client() -> OpenAI:
         exit(1)
     return OpenAI(api_key=OPENAI_API_KEY)
 
-# --- Serper API Integration ---
-
-def fetch_serper_results(query: str, num_results: int = 5) -> list[dict]:
+# --- Serper News API Integration (NEW) ---
+def fetch_serper_articles(query: str, num_results: int = 5) -> list[dict]:
     """
-    Fetches real-time search results from Serper API based on a given query.
+    Fetches recent news articles from Serper News API based on a query.
 
     Args:
-        query (str): Search query.
-        num_results (int): Number of results to fetch (default 5).
+        query (str): Search query (e.g., category name).
+        num_results (int): Max number of results to fetch.
 
     Returns:
-        list[dict]: A structured list of top relevant articles containing
-                    'title', 'link', and 'snippet'. Returns empty list on error.
+        list[dict]: A list of articles, formatted similarly to the previous API.
+                    Keys include 'title', 'link' (as 'url'), 'snippet' (as 'description'),
+                    'source'. Returns empty list on error or if no key is found.
     """
     if not SERPER_API_KEY:
-        print("Error: SERPER_API_KEY not found in backend/.env file. Skipping search.")
+        print("Error: SERPER_API_KEY not found in backend/.env file. Skipping Serper search.")
         return []
 
-    url = "https://google.serper.dev/search"
+    serper_url = "https://google.serper.dev/news"
     payload = json.dumps({
         "q": query,
         "num": num_results,
-        "tbs": "qdr:d"  # Restrict search to the past 24 hours (d=day)
+        "tbs": "qdr:d"  # Filter for results from the last 24 hours ('d' for day)
     })
     headers = {
         'X-API-KEY': SERPER_API_KEY,
@@ -95,220 +97,227 @@ def fetch_serper_results(query: str, num_results: int = 5) -> list[dict]:
     }
 
     try:
-        print(f"  [Serper] Fetching results for query: '{query}'")
-        response = requests.post(url, headers=headers, data=payload, timeout=10)  # Added timeout
+        print(f"  [Serper] Fetching results for query: '{query}' (last 24 hours)")
+        response = requests.post(serper_url, headers=headers, data=payload)
         response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
 
-        results = response.json()
-        organic_results = results.get('organic', [])  # Get the list of organic results
+        search_results = response.json()
+        articles = search_results.get('news', [])
 
-        # Structure the results
-        structured_results = [
-            {
-                "title": item.get('title'),
-                "link": item.get('link'),
-                "snippet": item.get('snippet')
-            }
-            for item in organic_results if item.get('title') and item.get('link') and item.get('snippet')
-        ]
-        print(f"  [Serper] Found {len(structured_results)} relevant results.")
-        return structured_results
+        # Map Serper response fields to the expected format
+        formatted_articles = []
+        for article in articles:
+            # Ensure basic required fields exist
+            if article.get('link') and article.get('title') and article.get('snippet'):
+                formatted_articles.append({
+                    "title": article.get("title"),
+                    "url": article.get("link"),  # Map 'link' to 'url'
+                    "description": article.get("snippet"),  # Map 'snippet' to 'description'
+                    "content": article.get("snippet"),  # Also map to 'content' as a fallback
+                    "source": {"name": article.get("source", "N/A")},  # Wrap source name in dict
+                    "publishedAt": article.get("date", None)  # Serper provides 'date'
+                })
+
+        print(f"  [Serper] Found {len(formatted_articles)} relevant articles.")
+        return formatted_articles[:num_results]  # Ensure we don't exceed num_results
 
     except requests.exceptions.RequestException as e:
         print(f"Error during Serper API request: {e}")
+        # Attempt to get more specific error details from response if available
+        try:
+            error_details = response.json()
+            print(f"  Serper Error Details: {error_details}")
+        except Exception:
+            # If response wasn't JSON or doesn't exist
+            if 'response' in locals() and response is not None:
+                print(f"  Serper Response Status: {response.status_code}")
+                print(f"  Serper Response Text: {response.text[:200]}...")  # Log snippet of text
         return []
     except json.JSONDecodeError:
-        print("Error decoding Serper API response.")
+        print("Error decoding Serper JSON response.")
+        print(f"  Serper Response Text: {response.text[:200]}...")
         return []
     except Exception as e:
         print(f"An unexpected error occurred during Serper fetch: {e}")
         return []
 
-# --- OpenAI Integration (Modified) ---
 
-def get_openai_summary_with_context(client: OpenAI, category_instruction: str, serper_context: list[dict]) -> tuple[str, str]:
+# --- OpenAI Integration (Modified for footnote headers & Serper context) ---
+def get_openai_summary_with_context(client: OpenAI, category: str, category_instruction: str, news_articles: list[dict]) -> str:
     """
-    Generates a summary using OpenAI, informed by Serper search results.
+    Generates a summary using OpenAI with short footnote headers, informed by Serper articles.
+    The summary content itself should NOT include the main category title (e.g., **World News**).
 
     Args:
         client (OpenAI): Initialized OpenAI client.
+        category (str): The name of the category being processed (for logging).
         category_instruction (str): The specific instruction for the news category.
-        serper_context (list[dict]): A list of dicts from Serper (title, link, snippet).
+        news_articles (list[dict]): A list of article dicts from Serper API.
 
     Returns:
-        tuple[str, str]: (summary_text, comma_separated_sources) or error messages.
+        str: Formatted summary text with linked short footnote headers (without the main category title).
     """
-    # Prepare context string from Serper results
-    context_str = "\n\nRelevant articles from the last 24 hours:\n"
-    source_links = []
-    if serper_context:
-        for idx, item in enumerate(serper_context, 1):
-            context_str += f"{idx}. Title: {item['title']}\n   Link: {item['link']}\n   Snippet: {item['snippet']}\n"
-            source_links.append(item['link'])  # Collect links for the sources column
-    else:
-        context_str += "No specific articles found for context.\n"
+    # --- 1. Pre-check for sufficient context ---
+    if not news_articles:
+        print(f"  [{category}] Warning: No articles provided from Serper. Skipping OpenAI generation.")
+        return "Error: Insufficient data to generate summary."
 
-    # Construct the system prompt including the Serper context
+    # --- 2. Prepare context string and structured sources ---
+    context_str = "\n\nRelevant articles from the last 24 hours:\n"
+    # Create a mapping from index to URL for the AI
+    article_links = {idx: article.get('url') for idx, article in enumerate(news_articles, 1) if article.get('url')}
+
+    for idx, article in enumerate(news_articles, 1):
+        title = article.get('title', 'No Title')
+        link = article.get('url')  # Use 'url' which we mapped from Serper's 'link'
+
+        # Use 'description' (mapped from Serper's 'snippet')
+        snippet = article.get('description', '')
+        # Limit snippet length to avoid overly long context
+        snippet = (snippet[:300] + '...') if len(snippet) > 300 else snippet  # Increased length slightly
+
+        if not snippet or not link:  # Skip if no usable snippet or link
+            print(f"  [{category}] Warning: Skipping article {idx} ('{title}') due to missing snippet or link.")
+            continue
+
+        # Source name is now nested under 'source' key
+        source_name_raw = article.get('source', {}).get('name', 'N/A')
+        # Add index and URL to context for AI linking
+        context_str += f"{idx}. Title: {title}\n   Link: {link}\n   Source: {source_name_raw}\n   Snippet: {snippet}\n"
+
+    # --- Debug log for Serper context ---
+    # log_context_str = (context_str[:1000] + '...') if len(context_str) > 1000 else context_str # Removed shortening for debug
+    # print(f"DEBUG: [{category}] Serper context being passed to OpenAI...:\n{log_context_str}")
+    # --- End Debug log ---
+
+    if not article_links:  # Check if we have any articles with links to reference
+        print(f"  [{category}] Error: No valid articles with links remaining after filtering snippets. Cannot generate summary.")
+        return "Error: No valid source data with content to generate summary."
+
+    # --- 3. Construct the system prompt (UPDATED FOR NEWSPAPER FORMAT, FILTERING, NO PARTIAL QUOTES, LINKED FOOTNOTES, NO HEADER) ---
     system_prompt = (
-        f"You are an AI assistant providing concise, factual news summaries based ONLY on the provided context.\n"
-        f"Follow these instructions precisely:\n"
-        f"1. Analyze the following articles provided under 'Relevant articles...':\n{context_str}\n"
-        f"2. Based *only* on the information in these articles, {category_instruction}\n"
-        f"3. Limit the summary to 2-3 sentences.\n"
-        f"4. Ensure neutrality and factual accuracy.\n"
-        f"5. IMPORTANT: Do NOT include information not present in the provided article snippets. If the articles don't provide enough information for a summary, state that clearly."
-        # Removed explicit request for URLs here, as we source them from Serper context
+        f"You are an AI assistant creating concise, factual news summaries formatted like newspaper articles, based ONLY on objective news reporting found in the provided context.\\n"
+        f"Follow these instructions precisely:\\n"
+        f"1. Analyze the articles provided under 'Relevant articles...'. Each article is numbered and has a Link.\\n"
+        f"CONTEXT:\\n"
+        f"-------\\n"
+        f"{context_str}"
+        f"-------\\n"
+        f"2. **CRITICAL FILTERING STEP:** Before summarizing, evaluate each article snippet in the CONTEXT. **IGNORE and EXCLUDE** any articles that are primarily:\\n"
+        f"   - Opinion pieces, editorials, or personal blogs.\\n"
+        f"   - Analysis or commentary with a strong subjective viewpoint or advocacy.\\n"
+        f"   - Articles focused heavily on polling data, survey results, or complex methodology rather than events.\\n"
+        f"   - Subjective reviews or speculative content.\\n"
+        f"   Focus ONLY on articles that present objective, factual news reporting.\\n"
+        f"3. Based *only* on the factual information in the **filtered, objective articles**, {category_instruction}\\n"
+        f"4. IMPORTANT: Do NOT include the main category title (like '**Category Name**') at the beginning of your response.\\n"
+        f"5. Format each summary item like a short newspaper article: \\n"
+        f"   a. Start with a short, bold Article Header (2-6 words) on its own line. Example: **New Trade Tariffs Announced**\\n"
+        f"   b. Follow the header with a paragraph (2-5 sentences) summarizing the key factual information. DO NOT use bullet points.\\n"
+        f"   c. Include footnote references like [¹], [²], etc. within the summary paragraph, referencing ONLY the objective articles used.\\n"
+        f"6. **WRITING STYLE:**\\n"
+        f"   a. Maintain a neutral, objective tone.\\n"
+        f"   b. **AVOID partial quotes.** Do not pull short phrases in quotation marks (e.g., \"worst offenders\") out of context. If quoting is necessary, use a more complete, self-contained statement or paraphrase instead.\\n"
+        f"   c. Ensure information is presented accurately and maintains the context provided in the source snippets. Do not misrepresent or oversimplify.\\n"
+        f"7. Separate each article item (Header + Paragraph) with a single blank line.\\n"
+        f"8. At the very end, include a 'Sources:' section.\\n"
+        f"9. In the 'Sources:' section, list the footnote numbers corresponding ONLY to the objective articles summarized. Use a short descriptive header (1-3 words) AND make that header a Markdown link to the corresponding article's URL from the context.\\n"
+        f"10. Example format for sources: [¹]: [Short Header](URL_from_context)\\n"
+        f"11. Ensure neutrality and factual accuracy based *only* on the filtered, objective snippets.\\n"
+        f"12. If, after filtering, NO objective articles provide sufficient information for the category, state that clearly (e.g., 'No objective news reports found for this category.'). Do NOT summarize subjective content.\"\n"
     )
 
-    # User message can be simpler now as context is in system prompt
-    user_message = "Generate the summary based on the provided context."
+    user_message = "Generate the summary content in newspaper article format (Header + Paragraph, no bullets) based *only* on the filtered, objective articles found in the provided context. Avoid partial quotes and maintain original context. Ignore opinion, polls, subjective analysis, and methodology-focused articles. Ensure sources reference only the objective articles used. Do not include the main category title in your response."
 
+    # --- ADDED: Log the exact prompt being sent ---
+    print(f"\n--- START OpenAI Prompt for [{category}] ---")
+    print(f"System Prompt:\n{system_prompt}")
+    print(f"User Message: {user_message}")
+    print("--- END OpenAI Prompt ---\n")
+    # --- END Log ---
+
+    # --- 4. Call OpenAI API ---
     try:
-        print("  [OpenAI] Generating summary with Serper context...")
+        print(f"  [{category}] [OpenAI] Generating summary with linked footnote headers...")
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message}
             ],
-            temperature=0.0,  # Even lower temperature for strict adherence to context
-            max_tokens=250    # Adjusted back down slightly as context is provided
+            temperature=0.1,  # Low temperature for factual summaries
+            max_tokens=600    # Increased slightly for URLs in sources
         )
         if response.choices:
-            summary_text = response.choices[0].message.content.strip()
-            # Sources are now directly from the serper_context links
-            sources_csv = ", ".join(source_links) if source_links else "No sources used"
-            return summary_text, sources_csv
+            summary_content = response.choices[0].message.content.strip()
+            # --- ADDED: Log the RAW response from OpenAI ---
+            print(f"--- START RAW OpenAI Response for [{category}] ---")
+            print(summary_content)
+            print("--- END RAW OpenAI Response ---")
+            # --- END Log ---
+            return summary_content
         else:
-            return "Error: No response choices received from API.", "N/A"
+            print(f"  [{category}] Error: No response choices received from API.")
+            return "Error: No response choices received from API."
 
     except Exception as e:
-        print(f"Error calling OpenAI API with context: {e}")
-        return f"Error generating summary with context: {e}", "N/A"
+        print(f"  [{category}] Error calling OpenAI API with context: {e}")
+        return f"Error generating summary with context: {e}"
 
-# --- Prompt Handling ---
 
-def load_and_parse_daily_prompts(file_path: str) -> dict[str, str]:
+# --- Prompt Handling (NEW) ---
+def load_category_prompts(prompts_dir: str) -> dict[str, str]:
     """
-    Loads prompts from the daily prompts file and parses them into a dictionary.
-    Assumes prompts are separated by '---' on its own line,
-    and category titles are marked with '**'.
+    Loads prompts from individual markdown files in the prompts directory.
+
+    Args:
+        prompts_dir (str): Path to the directory containing category prompt files.
+
+    Returns:
+        dict[str, str]: A dictionary mapping category names to their prompt instructions.
     """
-    print(f"  [Parser] Attempting to load and parse: {file_path}")  # Debug Log
     prompts = {}
+    print(f"  [Prompts] Loading category prompts from: {prompts_dir}")
+
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()  # Read all lines
+        # Get list of all markdown files in the directory
+        prompt_files = [f for f in os.listdir(prompts_dir) if f.endswith('.md')]
+        print(f"  [Prompts] Found {len(prompt_files)} markdown files")
 
-        sections = []
-        current_section_lines = []
-        for line in lines:
-            # Check if the line *is* the separator
-            if line.strip() == '---':
-                # If we have accumulated lines, finalize the section
-                if current_section_lines:
-                    sections.append("\n".join(current_section_lines).strip())  # Join back and strip
-                current_section_lines = []  # Start a new section
-            else:
-                current_section_lines.append(line)  # Add line to current section
-
-        # Add the last accumulated section if any lines remain
-        if current_section_lines:
-            sections.append("\n".join(current_section_lines).strip())
-
-        print(f"  [Parser] Found {len(sections)} sections using manual line splitting.")  # Debug Log
-
-        if len(sections) < 2:  # Expect at least header and one prompt section
-            print(f"Error: Could not find at least one '---' separator line in {file_path}. Required format not met.")
+        if not prompt_files:
+            print(f"Error: No markdown files found in {prompts_dir}")
             exit(1)
 
-        # Skip the first section (assumed to be general instructions)
-        print("  [Parser] Skipping first section (assumed instructions).")
-        prompt_sections = sections[1:]
-
-        for idx, section_content in enumerate(prompt_sections, start=1):
-            # Section content is already stripped from the splitting logic above
-            print(f"\n  [Parser] Processing Section {idx}...")  # Debug Log
-            if not section_content:
-                print("  [Parser] Skipping empty section.")  # Debug Log
+        for filename in prompt_files:
+            # Skip non-category files
+            if filename in ['daily-prompts.md', 'premium-prompts.md', 'general-prompt.md']:
                 continue
 
-            lines = section_content.split('\n')  # Split the section content back into lines
-            category = None
-            prompt_text = None
-            category_found_on_line = -1
+            # Extract category name from filename
+            category = filename.replace('.md', '').replace('-', ' ').title()
+            file_path = os.path.join(prompts_dir, filename)
 
-            # First pass: Find the Category Title
-            for i, line in enumerate(lines):
-                line_stripped = line.strip()
-                if not line_stripped:
-                    continue  # Skip empty lines
+            try:
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    content = file.read().strip()
+                    prompts[category] = content
+                    print(f"  [Prompts] Successfully loaded: {category} from {filename}")
+            except Exception as e:
+                print(f"  [Prompts] Error reading {filename}: {e}")
 
-                # Look for **Category**
-                match = re.match(r"\*\*(.+?)\*\*", line_stripped)
-                if match:
-                    category = match.group(1).strip()
-                    category_found_on_line = i
-                    print(f"    [Parser] Found Category: '{category}' on line index {i}")  # Debug Log
-                    break  # Stop looking for category once found
+        print(f"  [Prompts] Successfully loaded {len(prompts)} category prompts")
 
-                # Handle Miscellaneous category if not bolded (fallback)
-                if category is None and line_stripped.lower() == "miscellaneous":
-                    category = "Miscellaneous"
-                    category_found_on_line = i
-                    print(f"    [Parser] Found Category (fallback): '{category}' on line index {i}")  # Debug Log
-                    break  # Stop looking for category once found
-
-            # Second pass: Find the Prompt Text (must be after category title)
-            if category is not None:
-                # Start searching from the line *after* the category title
-                start_search_index = category_found_on_line + 1
-                if start_search_index < len(lines):
-                    for line in lines[start_search_index:]:
-                        line_stripped = line.strip()
-                        if not line_stripped:
-                            continue  # Skip empty lines
-
-                        if line_stripped.startswith('"') and line_stripped.endswith('"'):
-                            prompt_text = line_stripped.strip('"')
-                            # Escape quotes in the prompt text for safe printing
-                            safe_prompt_snippet = prompt_text.replace('"', '\"')[:50]
-                            print(f"    [Parser] Found Prompt: \"{safe_prompt_snippet}...\"")  # Debug Log
-                            break  # Stop looking for prompt once found
-                else:
-                    print(f"    [Parser] Warning: No lines found after category title '{category}' to search for prompt.")
-
-            # Store if both were found for this section
-            if category and prompt_text:
-                prompts[category] = prompt_text
-                print(f"  [Parser] Successfully parsed Category and Prompt for: '{category}'")  # Debug Log
-            else:
-                section_start = lines[0].strip() if lines else "[empty section]"
-                warning_msg = f"  [Parser] Warning: Failed to parse section starting with: '{section_start}' - "
-                if not category:
-                    warning_msg += "Could not find a '**Category**' title or 'Miscellaneous' line. "
-                elif not prompt_text:
-                    # Corrected formatting for the warning message
-                    warning_msg += f"Found category '{category}', but could not find a subsequent quoted \"Prompt...\" line."
-                print(warning_msg)
-
-        print(f"\n  [Parser] Parsing complete. Total prompts loaded: {len(prompts)}")  # Debug Log
         if not prompts:
-            print(f"Error: No prompts were successfully parsed from {file_path}. Please check the file format ensures each section after '---' has a **Category** and a \"Prompt\" line.")
+            print(f"Error: No valid prompts could be loaded from {prompts_dir}")
             exit(1)
 
         return prompts
 
-    except FileNotFoundError:
-        print(f"Error: Daily prompts file not found at {file_path}")
-        exit(1)
     except Exception as e:
-        print(f"Error reading or parsing prompts file {file_path}: {e}")
+        print(f"Error loading category prompts from {prompts_dir}: {e}")
         exit(1)
-
 
 # --- Supabase Integration ---
-
 def initialize_supabase_client() -> Client | None:
     """Initializes and returns the Supabase client."""
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -324,21 +333,26 @@ def initialize_supabase_client() -> Client | None:
         print(f"Error initializing Supabase client: {e}")
         return None
 
-def save_summary_to_supabase(client: Client, category: str, summary: str, sources: str):
+def save_summary_to_supabase(client: Client, category: str, summary: str):
     """Saves a generated summary to the Supabase 'daily_summaries' table."""
     if not client:
         print("Supabase client not initialized. Skipping database save.")
         return
+
+    # --- Log the data just before saving ---
+    print(f"DEBUG: Saving to Supabase for {category}:")
+    print(f"  Summary length: {len(summary)}")
+    # --- End Log ---
 
     try:
         table_name = "daily_summaries"
         # Use datetime.now() and format as ISO string for Supabase
         generation_timestamp = datetime.now().isoformat()
         data_to_insert = {
-            "generation_date": generation_timestamp,  # Store timestamp string
+            "generation_date": generation_timestamp,
             "category": category,
-            "summary": summary,
-            "sources": sources
+            "summary": summary,  # Contains summary text with footnotes
+            "sources": "[]"      # Empty JSON array as sources are now in the summary text
         }
         print(f"  Attempting to save summary for '{category}' to Supabase table '{table_name}'...")
         response = client.table(table_name).insert(data_to_insert).execute()
@@ -359,7 +373,6 @@ def save_summary_to_supabase(client: Client, category: str, summary: str, source
             print(f"    Error saving summary for {category} to Supabase: {error_message}")
             status = getattr(response, 'status_code', 'N/A')
             print(f"    Response status: {status}")
-            # print(f"    Full Response: {response}")  # Uncomment for deeper debugging
             print("    Please ensure the table 'daily_summaries' exists and has the correct schema/permissions.")
             print("    Also, verify SUPABASE_URL and SUPABASE_KEY in backend/.env are correct.")
 
@@ -369,51 +382,128 @@ def save_summary_to_supabase(client: Client, category: str, summary: str, source
         data_attempted_str = str(data_to_insert) if 'data_to_insert' in locals() else "{Could not capture data before error}"
         print(f"  Data attempted: {data_attempted_str}")
 
-# --- Main Execution (Modified) ---
-
+# --- Main Execution (Updated for Category Prompts & Serper) ---
 def main():
     """Main function to fetch context, generate summaries, and store them."""
-    print("Starting daily summary generation with Serper context...")
+    print("Starting daily summary generation with individualized category prompts using Serper API...")
 
     # 1. Initialize Clients
     openai_client = initialize_openai_client()
     supabase_client = initialize_supabase_client()
 
-    # 2. Load Daily Prompts
-    print(f"Loading prompts from: {DAILY_PROMPTS_FILE}")
-    daily_prompts = load_and_parse_daily_prompts(DAILY_PROMPTS_FILE)
-    print(f"Loaded {len(daily_prompts)} daily prompts.")
+    # 2. Load Category Prompts
+    print(f"Loading category prompts from: {PROMPTS_DIR}")
+    category_prompts = load_category_prompts(PROMPTS_DIR)
+    print(f"Loaded {len(category_prompts)} category prompts.")
+
+    # Track used article URLs for deduplication
+    used_article_urls = set()
 
     # 3. Generate and Store Summaries for each category
     today = date.today()
     print(f"\nGenerating summaries for {today}...")
 
-    for category, prompt_instruction in daily_prompts.items():
+    for category, prompt_instruction in category_prompts.items():
         print(f"\nProcessing category: {category}...")
 
-        # 3a. Fetch Serper Results for the category
-        # Construct a search query (e.g., "World News last 24 hours")
-        search_query = f"{category} last 24 hours"
-        serper_results = fetch_serper_results(search_query)
+        # 3a. Fetch Serper Articles for the category
+        serper_articles_raw = fetch_serper_articles(query=category, num_results=7)  # Fetch using Serper
 
-        # 3b. Generate Summary with OpenAI using Serper context
-        if serper_results:  # Only proceed if we have search results
-            summary_text, sources_csv = get_openai_summary_with_context(openai_client, prompt_instruction, serper_results)
-        else:
-            print("  Skipping OpenAI summary generation due to lack of Serper results.")
-            summary_text = "Error: Could not fetch search results to generate summary."
-            sources_csv = "N/A"
+        # Filter out already used articles
+        serper_articles = [
+            article for article in serper_articles_raw
+            if article.get('url') not in used_article_urls  # Use 'url' field now
+        ]
 
-        # 3c. Save to Supabase
-        if "Error:" not in summary_text:
-            print("  Summary generated successfully.")
-            save_summary_to_supabase(supabase_client, category, summary_text, sources_csv)
+        if len(serper_articles) < len(serper_articles_raw):
+            print(f"  Filtered out {len(serper_articles_raw) - len(serper_articles)} duplicate articles.")
+
+        # 3b. Generate Summary Content (without header) with OpenAI
+        summary_content = ""
+        if serper_articles:
+            # Pass category name to the function for logging
+            summary_content = get_openai_summary_with_context(openai_client, category, prompt_instruction, serper_articles)
+
+            # Track used URLs to avoid duplicates in other categories
+            for article in serper_articles:
+                if article.get('url'):
+                    used_article_urls.add(article.get('url'))
         else:
-            print(f"  Failed to generate or save summary for {category}. Error: {summary_text}")
-            # Optionally save error state to Supabase if desired
-            # save_summary_to_supabase(supabase_client, category, summary_text, sources_csv)
+            print(f"  [{category}] No relevant articles found via Serper. Skipping summary generation.")
+            # Prepare content for the 'no articles' case (without header)
+            summary_content = "No relevant articles were found for this category in the last 24 hours."
+
+        # 3c. Save the raw content (or error/message) to Supabase
+        # The header **Category** is now handled solely by the frontend CategorySection component
+        # final_summary_text = f"**{category}**\n\n{summary_content}" # REMOVED THIS LINE
+
+        # Check if the content generation resulted in an error message or no articles found
+        if summary_content.startswith("Error:"):
+            print(f"  Failed to generate summary for {category}. Error: {summary_content}")
+            # Save the error message (without manual header)
+            save_summary_to_supabase(supabase_client, category, summary_content)
+        elif not serper_articles:
+            # Also save the 'no articles' message (without manual header)
+            print("  Saving 'no articles' message.")
+            save_summary_to_supabase(supabase_client, category, summary_content)
+        else:
+            # Summary content generation was successful
+            print("  Summary content generated successfully.")
+            save_summary_to_supabase(supabase_client, category, summary_content)  # Save raw content
 
     print("\nDaily summary generation process complete.")
 
+
 if __name__ == "__main__":
-    main() 
+    main()
+
+# --- Testing Instructions ---
+#
+# To test this implementation:
+#
+# 1. Ensure all required category prompt files exist in the prompts/ directory:
+#    - world-news.md
+#    - us-news.md
+#    # ... (rest of the category files)
+#    - miscellaneous.md
+#    * Ensure each prompt file instructs the AI to output linked footnotes like: [¹]: [Header](URL)
+#
+# 2. Verify your .env file in the backend/ directory contains valid API keys for:
+#    - OpenAI
+#    - Serper (SERPER_API_KEY)
+#    - Supabase (if using database storage)
+#
+# 3. Ensure you have installed the required packages:
+#    pip install -r requirements.txt
+#
+# 4. Run the script from your project root directory:
+#    python backend/main.py
+#
+# 5. Check the console output for:
+#    - Successful loading of category prompts
+#    - Successful article fetching (from Serper) for each category
+#    - Generated summaries with proper footnote format
+#
+# 6. If using Supabase, verify the summaries are saved with proper formatting:
+#    - Each summary should start with the category title (e.g., **Technology**)
+#    - The summary content should NOT have a duplicate category title.
+#    - Each point should include footnote references [¹], [²], etc.
+#    - At the end, there should be a Sources section with linked headers: [¹]: [Short Header](URL)
+#
+# Example expected summary format (Raw text stored in Supabase):
+#
+# **Technology**
+#
+# - The NFL announced it will adopt camera-based technology from Sony to measure first downs starting this fall.[¹]
+# - Apple unveiled its new M4 chip with significantly improved AI performance.[²]
+#
+# **Sources:**
+# [¹]: [NFL Technology](http://example.com/nfl-sony-tech)
+# [²]: [Apple M4](http://example.com/apple-m4-release)
+#
+# Troubleshooting:
+# - If no articles are found, check your SERPER_API_KEY and usage limits.
+# - If articles are found but OpenAI fails, check your OPENAI_API_KEY and usage limits.
+# - If summaries don't include proper linked footnotes, review the system prompt in `get_openai_summary_with_context` and the instructions in each category file.
+# - Ensure the `requests` library is installed (`pip install requests`).
+# - Remember: The application displaying this data needs to render the Markdown (especially links) for it to appear correctly in a browser. 
